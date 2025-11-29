@@ -1,4 +1,4 @@
-/* app.css
+/* App.css
    Component-level styles for MediCare FEDF-PS20 demo
 */
 
@@ -415,6 +415,17 @@
   color: #9ca3af;
 }
 
+/* Map image inside hero card */
+
+.map-image {
+  width: 100%;
+  border-radius: 0.8rem;
+  margin: 0.6rem 0;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
+  object-fit: cover;
+}
+
 /* ---------- Advantages section ---------- */
 
 .grid--advantages {
@@ -456,7 +467,7 @@
   color: var(--color-text-muted);
 }
 
-/* ---------- Roles section ---------- */
+/* ---------- Roles section (not used now but kept) ---------- */
 
 .grid--roles {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -711,6 +722,49 @@
   gap: 0.6rem;
   font-size: 0.86rem;
   color: #e5e7eb;
+}
+
+/* ---------- Horizontal sign-up steps ---------- */
+
+.steps-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.step-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.step-number-circle {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: radial-gradient(circle at 30% 0, #a5b4fc, #6366f1);
+  color: #f9fafb;
+}
+
+.step-text {
+  color: var(--color-text-main);
+}
+
+.step-arrow {
+  font-size: 1.3rem;
+  opacity: 0.7;
 }
 
 /* ---------- Responsiveness ---------- */

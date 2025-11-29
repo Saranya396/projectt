@@ -1,27 +1,41 @@
-// App.jsx
+// src/App.jsx
 /**
- * FEDF-PS20: Create an online medical system for virtual consultations
- *
- * Develop a web application that allows users to book virtual medical appointments,
- * receive e-prescriptions, and access their medical records and lab reports.
- *
- * Roles:
- * - Admin: Manage platform settings, oversee user accounts, and ensure data security.
- * - Doctor: Conduct virtual consultations, provide e-prescriptions, and manage patient records.
- * - Patient: Book appointments, access medical records, and receive virtual consultations.
- * - Pharmacist: Manage e-prescriptions, track orders, and provide medication information.
+ * FEDF-PS20: Online medical system (Home + Sign up/Login with localStorage)
  */
 
-import React, { useState } from "react";
-import "./app.css";
+import React, { useState, useMemo } from "react";
+import "./App.css";
 
-// --------- Inline SVG Icons (no external deps) ----------
+// Role dashboards (separate files under /pages)
+import PatientDashboard from "./pages/PatientDashboard.jsx";
+import DoctorDashboard from "./pages/DoctorDashboard.jsx";
+import PharmacistDashboard from "./pages/PharmacistDashboard.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
+
+/* ---------------- LocalStorage helpers ---------------- */
+
+const LS_USERS = "medicare_users";
+
+const loadUsers = () => {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(LS_USERS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveUsers = (users) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LS_USERS, JSON.stringify(users));
+};
+
+/* ---------------- Small SVG icons ---------------- */
 
 const HomeIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -38,8 +52,6 @@ const HomeIcon = (props) => (
 const LogInIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -57,8 +69,6 @@ const LogInIcon = (props) => (
 const UserIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -75,8 +85,6 @@ const UserIcon = (props) => (
 const LockIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -93,8 +101,6 @@ const LockIcon = (props) => (
 const ArrowLeftIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -111,8 +117,6 @@ const ArrowLeftIcon = (props) => (
 const ShieldIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -128,8 +132,6 @@ const ShieldIcon = (props) => (
 const ActivityIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -145,8 +147,6 @@ const ActivityIcon = (props) => (
 const ClipboardIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -160,298 +160,101 @@ const ClipboardIcon = (props) => (
   </svg>
 );
 
-const StethoscopeIcon = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M6 4v5a6 6 0 0 0 12 0V4" />
-    <circle cx="6" cy="4" r="2" />
-    <circle cx="18" cy="4" r="2" />
-    <path d="M12 17v3a3 3 0 0 0 6 0v-3" />
-  </svg>
-);
+/* ---------------- Home page ---------------- */
 
-const PillIcon = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <rect x="3" y="3" width="9" height="18" rx="4.5" />
-    <rect x="12" y="3" width="9" height="18" rx="4.5" />
-    <path d="M3 12h9" />
-  </svg>
-);
+const HomePage = ({ onGoAuth, users }) => {
+  const stats = useMemo(() => {
+    const counts = { admin: 0, doctor: 0, patient: 0, pharmacist: 0 };
+    users.forEach((u) => {
+      if (counts[u.role] !== undefined) counts[u.role] += 1;
+    });
+    const totalUsers =
+      counts.admin + counts.doctor + counts.patient + counts.pharmacist;
 
-// --------- Simple Dashboard Components (per role) ----------
+    // If no real data yet, show sample numbers instead of 0s
+    if (totalUsers === 0) {
+      return {
+        patient: 128,
+        doctor: 42,
+        pharmacist: 18,
+        admin: 6,
+        totalUsers: 194,
+      };
+    }
 
-const AdminDashboard = ({ user, onLogout }) => (
-  <div className="page">
-    <section className="card section">
-      <h2 className="section-title">Admin Dashboard</h2>
-      <p className="section-subtitle">
-        Welcome {user?.username || "Admin"}! Manage platform users, roles and
-        overall system security.
-      </p>
+    return { ...counts, totalUsers };
+  }, [users]);
 
-      <div className="grid grid--advantages" style={{ marginTop: "1rem" }}>
-        <article className="adv-card card">
-          <h3 className="adv-title">User Management</h3>
-          <p className="adv-description">
-            View and manage all patients, doctors and pharmacists registered on the platform.
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">Access Control</h3>
-          <p className="adv-description">
-            Configure role-based permissions for secure access to medical data.
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">Platform Settings</h3>
-          <p className="adv-description">
-            Update consultation rules, availability windows and system policies.
-          </p>
-        </article>
-      </div>
-
-      <button className="btn btn--ghost" style={{ marginTop: "1.2rem" }} onClick={onLogout}>
-        Logout
-      </button>
-    </section>
-  </div>
-);
-
-const DoctorDashboard = ({ user, onLogout }) => (
-  <div className="page">
-    <section className="card section">
-      <h2 className="section-title">Doctor Dashboard</h2>
-      <p className="section-subtitle">
-        Hello Dr. {user?.username || "User"} — review your upcoming appointments and issue e-prescriptions.
-      </p>
-
-      <div className="grid grid--advantages" style={{ marginTop: "1rem" }}>
-        <article className="adv-card card">
-          <h3 className="adv-title">Today&apos;s Appointments</h3>
-          <p className="adv-description">
-            List of scheduled virtual consultations (dummy data for now).
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">Patient Records</h3>
-          <p className="adv-description">
-            Access patient histories, lab reports and previous prescriptions.
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">E-Prescriptions</h3>
-          <p className="adv-description">
-            Create and send digital prescriptions directly to the patient and pharmacist.
-          </p>
-        </article>
-      </div>
-
-      <button className="btn btn--ghost" style={{ marginTop: "1.2rem" }} onClick={onLogout}>
-        Logout
-      </button>
-    </section>
-  </div>
-);
-
-const PatientDashboard = ({ user, onLogout }) => (
-  <div className="page">
-    <section className="card section">
-      <h2 className="section-title">Patient Dashboard</h2>
-      <p className="section-subtitle">
-        Hi {user?.username || "Patient"} — book appointments and access your medical history.
-      </p>
-
-      <div className="grid grid--advantages" style={{ marginTop: "1rem" }}>
-        <article className="adv-card card">
-          <h3 className="adv-title">Book Appointment</h3>
-          <p className="adv-description">
-            Choose a doctor, date and time for your next virtual consultation.
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">Medical Records</h3>
-          <p className="adv-description">
-            View your diagnoses, treatment plans and uploaded lab reports.
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">E-Prescriptions</h3>
-          <p className="adv-description">
-            Access prescriptions shared by your doctors and track medication status.
-          </p>
-        </article>
-      </div>
-
-      <button className="btn btn--ghost" style={{ marginTop: "1.2rem" }} onClick={onLogout}>
-        Logout
-      </button>
-    </section>
-  </div>
-);
-
-const PharmacistDashboard = ({ user, onLogout }) => (
-  <div className="page">
-    <section className="card section">
-      <h2 className="section-title">Pharmacist Dashboard</h2>
-      <p className="section-subtitle">
-        Welcome {user?.username || "Pharmacist"} — manage incoming e-prescriptions and dispense medicines.
-      </p>
-
-      <div className="grid grid--advantages" style={{ marginTop: "1rem" }}>
-        <article className="adv-card card">
-          <h3 className="adv-title">E-Prescription Queue</h3>
-          <p className="adv-description">
-            View prescriptions waiting to be processed and verified.
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">Order Tracking</h3>
-          <p className="adv-description">
-            Track medication orders and update their status for patients.
-          </p>
-        </article>
-        <article className="adv-card card">
-          <h3 className="adv-title">Medication Info</h3>
-          <p className="adv-description">
-            Provide dosage and safety information to patients (counselling).
-          </p>
-        </article>
-      </div>
-
-      <button className="btn btn--ghost" style={{ marginTop: "1.2rem" }} onClick={onLogout}>
-        Logout
-      </button>
-    </section>
-  </div>
-);
-
-const AccessDenied = ({ navigate }) => (
-  <div className="page">
-    <section className="card section">
-      <h2 className="section-title">Access Denied</h2>
-      <p className="section-subtitle">
-        You are not authorised to view this dashboard. Please login with the correct role.
-      </p>
-      <button
-        className="btn btn--primary"
-        style={{ marginTop: "1rem" }}
-        onClick={() => navigate("login")}
-      >
-        <LogInIcon className="btn-icon" />
-        Go to Login
-      </button>
-    </section>
-  </div>
-);
-
-// --------- Page Components: Home ----------
-
-const HomePage = ({ navigate }) => {
   const advantages = [
     {
-      title: "Real-time Access",
+      title: "24x7 virtual care",
       description:
-        "Instantly view appointments, e-prescriptions, lab reports and records in one secure dashboard.",
+        "Book online consultations, receive e-prescriptions and view lab reports from anywhere.",
       Icon: ActivityIcon,
     },
     {
-      title: "Secure & Compliant",
+      title: "Secure health records",
       description:
-        "End-to-end encryption and strict access control keep patient data safe and private.",
+        "Role-based access and encryption make sure your data stays safe.",
       Icon: ShieldIcon,
     },
     {
-      title: "Truly Virtual Care",
+      title: "All roles connected",
       description:
-        "From booking to consultation to medication – everything happens online, from anywhere.",
+        "Admin, doctors, patients and pharmacists work in one unified system.",
       Icon: ClipboardIcon,
     },
   ];
 
-  const roles = [
+  const feedbacks = [
     {
-      label: "Admin",
-      Icon: ShieldIcon,
-      tag: "Platform governance",
-      description:
-        "Configure the platform, manage users and roles, and monitor system security.",
+      name: "Rahul, 21",
+      role: "Patient",
+      text: "“I booked a consultation in 2 minutes and got my e-prescription instantly.”",
     },
     {
-      label: "Doctor",
-      Icon: StethoscopeIcon,
-      tag: "Virtual consultations",
-      description:
-        "Attend appointments, update patient histories, and issue e-prescriptions.",
+      name: "Dr. Priya",
+      role: "Doctor",
+      text: "“Seeing previous history and reports in one place saves a lot of time.”",
     },
     {
-      label: "Patient",
-      Icon: UserIcon,
-      tag: "Care on demand",
-      description:
-        "Book slots, join video consultations, and access your complete medical journey.",
-    },
-    {
-      label: "Pharmacist",
-      Icon: PillIcon,
-      tag: "Medication management",
-      description:
-        "Process e-prescriptions, track orders, and provide medication counselling.",
+      name: "Karthik",
+      role: "Pharmacist",
+      text: "“E-prescriptions reduce errors and make dispensing very clear.”",
     },
   ];
 
+  const locations = ["Hyderabad", "Chennai", "Bengaluru", "Mumbai", "Delhi"];
+
   return (
     <div className="page page--home">
+      {/* Hero + map visual */}
       <section className="hero card">
         <div className="hero-text">
           <div className="hero-pill">
-            FEDF-PS20 • Online Medical System for Virtual Consultations
+            FEDF-PS20 · Online Medical System for Virtual Consultations
           </div>
           <h1 className="hero-title">
             MediCare
             <span className="hero-title-highlight"> Virtual Health Hub</span>
           </h1>
           <p className="hero-subtitle">
-            Book appointments, meet doctors online, receive e-prescriptions, and
-            access medical records — all in one intuitive, secure web
-            application.
+            Book appointments, meet doctors online, receive e-prescriptions and
+            access medical records — all inside one secure web app.
           </p>
           <div className="hero-actions">
-            <button
-              className="btn btn--primary"
-              onClick={() => navigate("login")}
-            >
+            <button className="btn btn--primary" onClick={onGoAuth}>
               <LogInIcon className="btn-icon" />
-              Access your account
+              Sign up / Login
             </button>
             <button
               className="btn btn--ghost"
               onClick={() => {
-                const section = document.getElementById("roles-section");
-                if (section) section.scrollIntoView({ behavior: "smooth" });
+                const el = document.getElementById("how-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              Explore roles
+              How it works
             </button>
           </div>
           <ul className="hero-meta">
@@ -460,29 +263,46 @@ const HomePage = ({ navigate }) => {
             <li>Medical records & lab reports</li>
           </ul>
         </div>
+
+        {/* “Map” – image + locations list */}
         <div className="hero-visual">
           <div className="hero-visual-card">
             <div className="hero-visual-row">
-              <span className="pill pill--green">Live</span>
-              <span className="hero-visual-label">Dr. Mehra · Cardiology</span>
-            </div>
-            <div className="hero-avatar-row">
-              <div className="hero-avatar hero-avatar--doctor">DR</div>
-              <div className="hero-avatar hero-avatar--patient">PT</div>
+              <span className="pill pill--green">Coverage</span>
+              <span className="hero-visual-label">MediCare Hospitals</span>
             </div>
             <p className="hero-visual-caption">
-              “Your lab reports look good. I’ll adjust the dosage and send an
-              updated e-prescription.”
+              Locations where the MediCare web app is actively used:
             </p>
+
+            {/* MAP IMAGE */}
+            <img
+              src="/medicare-map.png"
+              alt="Map with markers showing MediCare hospital locations"
+              className="map-image"
+            />
+
+            <p className="hero-visual-caption" style={{ marginTop: "0.4rem" }}>
+              Currently serving:
+            </p>
+            <ul className="panel-list">
+              {locations.map((city) => (
+                <li key={city}>
+                  <span className="dot dot--blue" />
+                  {city}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
 
+      {/* Advantages */}
       <section className="section">
-        <h2 className="section-title">Why choose MediCare?</h2>
+        <h2 className="section-title">Advantages of using MediCare</h2>
         <div className="grid grid--advantages">
-          {advantages.map((adv, idx) => (
-            <article key={idx} className="adv-card card">
+          {advantages.map((adv) => (
+            <article key={adv.title} className="adv-card card">
               <div className="adv-icon-wrap">
                 <adv.Icon className="adv-icon" />
               </div>
@@ -493,174 +313,449 @@ const HomePage = ({ navigate }) => {
         </div>
       </section>
 
-      <section className="section" id="roles-section">
-        <h2 className="section-title">Platform roles</h2>
+      {/* How to sign up / login – horizontal linked steps */}
+      <section className="section" id="how-section">
+        <h2 className="section-title">How to sign up / login</h2>
         <p className="section-subtitle">
-          The system is designed around four key stakeholders. Each
-          role-specific workspace is optimised for clarity and speed.
+          A simple 4-step flow to reach your role-based dashboard.
         </p>
-        <div className="grid grid--roles">
-          {roles.map((role, idx) => (
-            <article key={idx} className="role-card card">
-              <div className="role-icon-badge">
-                <role.Icon className="role-icon" />
-              </div>
-              <h3 className="role-title">{role.label}</h3>
-              <span className="role-tag">{role.tag}</span>
-              <p className="role-description">{role.description}</p>
+        <div className="card section">
+          <div className="steps-row">
+            <div className="step-chip">
+              <span className="step-number-circle">1</span>
+              <span className="step-text">Choose your role</span>
+            </div>
+            <span className="step-arrow">➜</span>
+            <div className="step-chip">
+              <span className="step-number-circle">2</span>
+              <span className="step-text">Enter details</span>
+            </div>
+            <span className="step-arrow">➜</span>
+            <div className="step-chip">
+              <span className="step-number-circle">3</span>
+              <span className="step-text">Sign up (account created)</span>
+            </div>
+            <span className="step-arrow">➜</span>
+            <div className="step-chip">
+              <span className="step-number-circle">4</span>
+              <span className="step-text">
+                Login with email + role + password
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feedbacks */}
+      <section className="section">
+        <h2 className="section-title">Feedback from users</h2>
+        <div className="grid grid--advantages">
+          {feedbacks.map((f) => (
+            <article key={f.name} className="adv-card card">
+              <h3 className="adv-title">{f.name}</h3>
+              <p className="role-tag" style={{ marginBottom: "0.4rem" }}>
+                {f.role}
+              </p>
+              <p className="adv-description">{f.text}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      {/* Stats / overview */}
+      <section className="section">
+        <h2 className="section-title">MediCare Network Overview</h2>
+        <p className="section-subtitle">
+          Quick overview of how many users are currently connected to the
+          MediCare virtual care platform.
+        </p>
+        <div className="grid grid--advantages">
+          <article className="adv-card card">
+            <h3 className="adv-title">Patients</h3>
+            <p className="hero-title-highlight" style={{ fontSize: "1.5rem" }}>
+              {stats.patient}
+            </p>
+          </article>
+          <article className="adv-card card">
+            <h3 className="adv-title">Doctors</h3>
+            <p className="hero-title-highlight" style={{ fontSize: "1.5rem" }}>
+              {stats.doctor}
+            </p>
+          </article>
+          <article className="adv-card card">
+            <h3 className="adv-title">Pharmacists</h3>
+            <p className="hero-title-highlight" style={{ fontSize: "1.5rem" }}>
+              {stats.pharmacist}
+            </p>
+          </article>
+          <article className="adv-card card">
+            <h3 className="adv-title">Admins</h3>
+            <p className="hero-title-highlight" style={{ fontSize: "1.5rem" }}>
+              {stats.admin}
+            </p>
+          </article>
+          <article className="adv-card card">
+            <h3 className="adv-title">Total registered users</h3>
+            <p className="hero-title-highlight" style={{ fontSize: "1.5rem" }}>
+              {stats.totalUsers}
+            </p>
+          </article>
         </div>
       </section>
     </div>
   );
 };
 
-// --------- Login Page (now notifies App on success) ----------
+/* ---------------- Sign up / Login page ---------------- */
 
-const LoginPage = ({ navigate, onLoginSuccess }) => {
-  const [username, setUsername] = useState("");
+const AuthPage = ({ onBackHome, onLoginSuccess, onUsersChange }) => {
+  const [mode, setMode] = useState("signup"); // "signup" | "login"
+
+  // --- signup state
+  const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("patient");
+  const [gender, setGender] = useState("female");
+  const [age, setAge] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [signupMsg, setSignupMsg] = useState("");
 
-  const handleLogin = (e) => {
+  // --- login state
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginRole, setLoginRole] = useState("patient");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginMsg, setLoginMsg] = useState("");
+
+  const validateSignup = () => {
+    if (!fullName.trim()) return "Full name is required.";
+    if (!gender) return "Gender is required.";
+    const ageNum = Number(age);
+    if (!age || Number.isNaN(ageNum) || ageNum <= 0)
+      return "Age must be a valid positive number.";
+    if (!email.includes("@gmail.com"))
+      return "Email must be a Gmail address (example@gmail.com).";
+    if (!/^\d{10}$/.test(phone))
+      return "Phone number must be exactly 10 digits.";
+    if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6}$/.test(password))
+      return "Password must be 6 characters and contain letters and numbers.";
+    return "";
+  };
+
+  const handleSignup = (e) => {
     e.preventDefault();
+    setSignupMsg("");
 
-    if (!username || !password) {
-      setMessage("Please enter both username and password.");
+    const error = validateSignup();
+    if (error) {
+      setSignupMsg(error);
       return;
     }
 
-    // Simulated login
-    setMessage(`Login successful as ${role.toUpperCase()} (simulated).`);
+    const users = loadUsers();
+    const exists = users.some(
+      (u) => u.email === email.trim() && u.role === role
+    );
+    if (exists) {
+      setSignupMsg("User with this email and role already exists.");
+      return;
+    }
 
-    // Inform parent (App) so it can navigate to correct dashboard
-    onLoginSuccess(role, username);
+    const newUser = {
+      id: Date.now(),
+      fullName: fullName.trim(),
+      role, // admin | doctor | patient | pharmacist
+      gender,
+      age: Number(age),
+      email: email.trim(),
+      phone,
+      password,
+      status: "active", // default status
+    };
+
+    const updated = [...users, newUser];
+    saveUsers(updated);
+    onUsersChange(updated);
+
+    setSignupMsg("Sign up successful! You can now login.");
+    setMode("login");
+    setLoginEmail(newUser.email);
+    setLoginRole(newUser.role);
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setLoginMsg("");
+
+    const users = loadUsers();
+    const found = users.find(
+      (u) =>
+        u.email === loginEmail.trim() &&
+        u.role === loginRole &&
+        u.password === loginPassword
+    );
+
+    if (!found) {
+      setLoginMsg("Invalid email / type of user / password.");
+      return;
+    }
+
+    // If admin has denied this user, block login
+    if (found.status === "denied") {
+      setLoginMsg("Your access has been denied by the admin.");
+      return;
+    }
+
+    setLoginMsg("Login successful.");
+    onLoginSuccess(found);
   };
 
   return (
     <div className="page page--login">
       <div className="login-layout card">
         <div className="login-left">
-          <button
-            onClick={() => navigate("home")}
-            className="back-link"
-            type="button"
-          >
+          <button type="button" className="back-link" onClick={onBackHome}>
             <ArrowLeftIcon className="back-icon" />
             Back to Home
           </button>
 
-          <h2 className="login-title">Sign in to MediCare</h2>
-          <p className="login-subtitle">
-            Choose your role, sign in, and continue where you left off.
-          </p>
-
-          <form className="form" onSubmit={handleLogin}>
-            <div className="form-field">
-              <label className="field-label" htmlFor="username">
-                Username
-              </label>
-              <div className="field-input-wrapper">
-                <UserIcon className="field-icon" />
-                <input
-                  id="username"
-                  type="text"
-                  className="field-input"
-                  placeholder="e.g. saranya.p"
-                  value={username}
-                  onChange={(e) => {
-                    setUsername(e.target.value);
-                    setMessage("");
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="form-field">
-              <label className="field-label" htmlFor="role">
-                Role
-              </label>
-              <select
-                id="role"
-                className="field-input field-input--select"
-                value={role}
-                onChange={(e) => {
-                  setRole(e.target.value);
-                  setMessage("");
-                }}
-              >
-                <option value="admin">Admin</option>
-                <option value="doctor">Doctor</option>
-                <option value="patient">Patient</option>
-                <option value="pharmacist">Pharmacist</option>
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label className="field-label" htmlFor="password">
-                Password
-              </label>
-              <div className="field-input-wrapper">
-                <LockIcon className="field-icon" />
-                <input
-                  id="password"
-                  type="password"
-                  className="field-input"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setMessage("");
-                  }}
-                />
-              </div>
-            </div>
-
-            <button type="submit" className="btn btn--primary btn--full">
-              <LogInIcon className="btn-icon" />
-              Sign in
-            </button>
-          </form>
-
-          {message && (
-            <div
+          {/* tabs: signup / login */}
+          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.8rem" }}>
+            <button
+              type="button"
               className={
-                "message " +
-                (message.toLowerCase().includes("successful")
-                  ? "message--success"
-                  : "message--error")
+                "header-link " +
+                (mode === "signup" ? "header-link--active" : "")
               }
+              onClick={() => {
+                setMode("signup");
+                setSignupMsg("");
+              }}
             >
-              {message}
-            </div>
+              Sign up
+            </button>
+            <button
+              type="button"
+              className={
+                "header-link " +
+                (mode === "login" ? "header-link--active" : "")
+              }
+              onClick={() => {
+                setMode("login");
+                setLoginMsg("");
+              }}
+            >
+              Login
+            </button>
+          </div>
+
+          {mode === "signup" ? (
+            <>
+              <h2 className="login-title">Create a MediCare account</h2>
+              <p className="login-subtitle">
+                Fill the details below to create your account.
+              </p>
+
+              <form className="form" onSubmit={handleSignup}>
+                <div className="form-field">
+                  <label className="field-label">Full name</label>
+                  <div className="field-input-wrapper">
+                    <UserIcon className="field-icon" />
+                    <input
+                      className="field-input"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Saranya P T"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">Role / Type of user</label>
+                  <select
+                    className="field-input field-input--select"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                  >
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Doctor</option>
+                    <option value="pharmacist">Pharmacist</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">Gender</label>
+                  <select
+                    className="field-input field-input--select"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                  >
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">Age</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="field-input"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    placeholder="e.g. 20"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">Email (@gmail.com)</label>
+                  <input
+                    type="email"
+                    className="field-input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@gmail.com"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">Phone number (10 digits)</label>
+                  <input
+                    type="tel"
+                    className="field-input"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="9876543210"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">
+                    Password (6-digit alpha numeric)
+                  </label>
+                  <div className="field-input-wrapper">
+                    <LockIcon className="field-icon" />
+                    <input
+                      type="password"
+                      className="field-input"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="e.g. ab12cd"
+                    />
+                  </div>
+                </div>
+
+                <button type="submit" className="btn btn--primary btn--full">
+                  Sign up
+                </button>
+              </form>
+
+              {signupMsg && (
+                <div
+                  className={
+                    "message " +
+                    (signupMsg.toLowerCase().includes("successful")
+                      ? "message--success"
+                      : "message--error")
+                  }
+                >
+                  {signupMsg}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h2 className="login-title">Login to MediCare</h2>
+              <p className="login-subtitle">
+                Only users who have already signed up in this browser can login.
+              </p>
+
+              <form className="form" onSubmit={handleLogin}>
+                <div className="form-field">
+                  <label className="field-label">Email</label>
+                  <input
+                    type="email"
+                    className="field-input"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="you@gmail.com"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">Type of user</label>
+                  <select
+                    className="field-input field-input--select"
+                    value={loginRole}
+                    onChange={(e) => setLoginRole(e.target.value)}
+                  >
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Doctor</option>
+                    <option value="pharmacist">Pharmacist</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="field-label">Password</label>
+                  <div className="field-input-wrapper">
+                    <LockIcon className="field-icon" />
+                    <input
+                      type="password"
+                      className="field-input"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••"
+                    />
+                  </div>
+                </div>
+
+                <button type="submit" className="btn btn--primary btn--full">
+                  <LogInIcon className="btn-icon" />
+                  Login
+                </button>
+              </form>
+
+              {loginMsg && (
+                <div
+                  className={
+                    "message " +
+                    (loginMsg.toLowerCase().includes("successful")
+                      ? "message--success"
+                      : "message--error")
+                  }
+                >
+                  {loginMsg}
+                </div>
+              )}
+            </>
           )}
 
           <p className="login-hint">
-            This demo focuses on front-end UI. Authentication is simulated for
-            FEDF-PS20.
+            Note: This is a front-end demo. No real backend.
           </p>
         </div>
 
         <aside className="login-right">
-          <h3 className="panel-title">Designed for remote care</h3>
+          <h3 className="panel-title">Roles that can sign in</h3>
           <ul className="panel-list">
             <li>
               <span className="dot dot--green" />
-              Patients book, reschedule, and join video consultations.
+              Patients book appointments and view their medical history.
             </li>
             <li>
               <span className="dot dot--blue" />
-              Doctors review medical history and issue e-prescriptions.
+              Doctors see patient details and consultations.
             </li>
             <li>
               <span className="dot dot--purple" />
-              Pharmacists fulfil orders and provide medication guidance.
+              Pharmacists see prescriptions and dispense medicines.
             </li>
             <li>
               <span className="dot dot--amber" />
-              Admin oversees roles, permissions, and platform health.
+              Admin manages all user accounts and access.
             </li>
           </ul>
         </aside>
@@ -669,60 +764,102 @@ const LoginPage = ({ navigate, onLoginSuccess }) => {
   );
 };
 
-// --------- Main App Shell ----------
+/* ---------------- Main App shell ---------------- */
 
 const App = () => {
-  const [currentPage, setCurrentPage] = useState("home");
-  const [user, setUser] = useState(null); // { role, username }
+  const [page, setPage] = useState("home"); // "home" | "auth" | "dashboard"
+  const [currentUser, setCurrentUser] = useState(null);
+  const [users, setUsers] = useState(() => loadUsers());
 
-  const navigateTo = (page) => setCurrentPage(page);
-
-  const handleLoginSuccess = (role, username) => {
-    const userInfo = { role, username };
-    setUser(userInfo);
-    setCurrentPage(`${role}-dashboard`); // admin-dashboard / doctor-dashboard etc.
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    setPage("dashboard");
   };
 
   const handleLogout = () => {
-    setUser(null);
-    setCurrentPage("home");
+    setCurrentUser(null);
+    setPage("home");
   };
 
   const renderPage = () => {
-    if (currentPage === "login") {
-      return <LoginPage navigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
+    if (page === "auth") {
+      return (
+        <AuthPage
+          onBackHome={() => setPage("home")}
+          onLoginSuccess={handleLoginSuccess}
+          onUsersChange={setUsers}
+        />
+      );
     }
 
-    if (currentPage === "admin-dashboard") {
-      if (!user || user.role !== "admin") {
-        return <AccessDenied navigate={navigateTo} />;
-      }
-      return <AdminDashboard user={user} onLogout={handleLogout} />;
-    }
+    if (page === "dashboard") {
+      if (!currentUser) return null;
 
-    if (currentPage === "doctor-dashboard") {
-      if (!user || user.role !== "doctor") {
-        return <AccessDenied navigate={navigateTo} />;
+      // Route by role to separate page components
+      if (currentUser.role === "patient") {
+        return (
+          <PatientDashboard
+            user={currentUser}
+            onLogout={handleLogout}
+            logout={handleLogout}
+          />
+        );
       }
-      return <DoctorDashboard user={user} onLogout={handleLogout} />;
-    }
 
-    if (currentPage === "patient-dashboard") {
-      if (!user || user.role !== "patient") {
-        return <AccessDenied navigate={navigateTo} />;
+      if (currentUser.role === "doctor") {
+        return (
+          <DoctorDashboard
+            user={currentUser}
+            onLogout={handleLogout}
+            logout={handleLogout}
+          />
+        );
       }
-      return <PatientDashboard user={user} onLogout={handleLogout} />;
-    }
 
-    if (currentPage === "pharmacist-dashboard") {
-      if (!user || user.role !== "pharmacist") {
-        return <AccessDenied navigate={navigateTo} />;
+      if (currentUser.role === "pharmacist") {
+        return (
+          <PharmacistDashboard
+            user={currentUser}
+            onLogout={handleLogout}
+            logout={handleLogout}
+          />
+        );
       }
-      return <PharmacistDashboard user={user} onLogout={handleLogout} />;
+
+      if (currentUser.role === "admin") {
+        return (
+          <AdminDashboard
+            user={currentUser}
+            users={users}
+            onUsersChange={setUsers}
+            onLogout={handleLogout}
+            logout={handleLogout}
+          />
+        );
+      }
+
+      // Fallback (unknown role)
+      return (
+        <div className="page">
+          <section className="card section">
+            <h2 className="section-title">Unknown role</h2>
+            <p className="section-subtitle">
+              Your role is not recognised. Please log out and login again.
+            </p>
+            <button
+              className="btn btn--ghost"
+              style={{ marginTop: "1.2rem" }}
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          </section>
+        </div>
+      );
     }
 
     // default: home
-    return <HomePage navigate={navigateTo} />;
+    return <HomePage onGoAuth={() => setPage("auth")} users={users} />;
   };
 
   return (
@@ -741,22 +878,20 @@ const App = () => {
           <nav className="header-nav">
             <button
               className={
-                "header-link " +
-                (currentPage === "home" ? "header-link--active" : "")
+                "header-link " + (page === "home" ? "header-link--active" : "")
               }
-              onClick={() => navigateTo("home")}
+              onClick={() => setPage("home")}
             >
               Home
             </button>
             <button
               className={
-                "header-link " +
-                (currentPage === "login" ? "header-link--active" : "")
+                "header-link " + (page === "auth" ? "header-link--active" : "")
               }
-              onClick={() => navigateTo("login")}
+              onClick={() => setPage("auth")}
             >
               <LogInIcon className="header-link-icon" />
-              Login
+              Sign up / Login
             </button>
           </nav>
         </div>
